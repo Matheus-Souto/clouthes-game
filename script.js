@@ -6,8 +6,8 @@ const clothes = [
     img: 'cachecol.png',
   },
   {
-    name: 'Camisa',
-    translation: 'Shirt',
+    name: 'Shirt',
+    translation: 'Camisa',
     img: 'blusa.png',
   },
   {
@@ -65,6 +65,22 @@ const congratulationsText = document.getElementById('congratulations');
 
 let dropped = [];
 
+// Variáveis para controle do touch (mobile)
+let isDragging = false;
+let draggedElement = null;
+let touchOffset = { x: 0, y: 0 };
+let originalParent = null;
+let dragData = {};
+
+// Detectar se é dispositivo móvel
+function isMobileDevice() {
+  return (
+    /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      navigator.userAgent,
+    ) || 'ontouchstart' in window
+  );
+}
+
 function renderClothesList() {
   clothesList.innerHTML = '';
   clothes.forEach((item, idx) => {
@@ -79,6 +95,11 @@ function renderClothesList() {
     img.dataset.idx = idx;
     img.addEventListener('dragstart', handleDragStart);
     img.addEventListener('click', () => speakWord(item.name));
+
+    // Touch events para mobile
+    img.addEventListener('touchstart', handleTouchStart, { passive: false });
+    img.addEventListener('touchmove', handleTouchMove, { passive: false });
+    img.addEventListener('touchend', handleTouchEnd, { passive: false });
     clothesList.appendChild(img);
   });
 }
@@ -100,6 +121,11 @@ function renderDroppedClothes() {
     img.addEventListener('dragstart', handleDroppedDragStart);
     img.addEventListener('click', () => speakWord(item.name));
 
+    // Touch events para mobile
+    img.addEventListener('touchstart', handleTouchStart, { passive: false });
+    img.addEventListener('touchmove', handleTouchMove, { passive: false });
+    img.addEventListener('touchend', handleTouchEnd, { passive: false });
+
     dropArea.appendChild(img);
   });
 }
@@ -112,6 +138,135 @@ function handleDragStart(e) {
 function handleDroppedDragStart(e) {
   e.dataTransfer.setData('droppedIndex', e.target.dataset.droppedIndex);
   e.dataTransfer.setData('source', 'dropArea');
+}
+
+// Touch events para mobile
+function handleTouchStart(e) {
+  e.preventDefault();
+  isDragging = true;
+  draggedElement = e.target.cloneNode(true);
+  originalParent = e.target.parentNode;
+
+  // Configurar dados do drag
+  if (e.target.dataset.idx !== undefined) {
+    dragData = {
+      idx: e.target.dataset.idx,
+      source: 'clothesList',
+    };
+  } else if (e.target.dataset.droppedIndex !== undefined) {
+    dragData = {
+      droppedIndex: e.target.dataset.droppedIndex,
+      source: 'dropArea',
+    };
+  }
+
+  const touch = e.touches[0];
+  const rect = e.target.getBoundingClientRect();
+  touchOffset.x = touch.clientX - rect.left;
+  touchOffset.y = touch.clientY - rect.top;
+
+  // Estilizar elemento arrastado
+  draggedElement.style.position = 'fixed';
+  draggedElement.style.zIndex = '9999';
+  draggedElement.style.pointerEvents = 'none';
+  draggedElement.style.opacity = '0.8';
+  draggedElement.style.transform = 'scale(1.1)';
+  draggedElement.style.left = touch.clientX - touchOffset.x + 'px';
+  draggedElement.style.top = touch.clientY - touchOffset.y + 'px';
+
+  document.body.appendChild(draggedElement);
+
+  // Adicionar visual feedback no elemento original
+  e.target.style.opacity = '0.5';
+}
+
+function handleTouchMove(e) {
+  if (!isDragging || !draggedElement) return;
+  e.preventDefault();
+
+  const touch = e.touches[0];
+  draggedElement.style.left = touch.clientX - touchOffset.x + 'px';
+  draggedElement.style.top = touch.clientY - touchOffset.y + 'px';
+
+  // Verificar se está sobre a drop area
+  const dropAreaRect = dropArea.getBoundingClientRect();
+  const isOverDropArea =
+    touch.clientX >= dropAreaRect.left &&
+    touch.clientX <= dropAreaRect.right &&
+    touch.clientY >= dropAreaRect.top &&
+    touch.clientY <= dropAreaRect.bottom;
+
+  if (isOverDropArea) {
+    dropArea.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
+    dropArea.style.transform = 'scale(1.02)';
+  } else {
+    dropArea.style.backgroundColor = 'transparent';
+    dropArea.style.transform = 'scale(1)';
+  }
+}
+
+function handleTouchEnd(e) {
+  if (!isDragging || !draggedElement) return;
+  e.preventDefault();
+
+  const touch = e.changedTouches[0];
+  const dropAreaRect = dropArea.getBoundingClientRect();
+  const isOverDropArea =
+    touch.clientX >= dropAreaRect.left &&
+    touch.clientX <= dropAreaRect.right &&
+    touch.clientY >= dropAreaRect.top &&
+    touch.clientY <= dropAreaRect.bottom;
+
+  if (isOverDropArea) {
+    // Simular drop
+    const x = ((touch.clientX - dropAreaRect.left) / dropAreaRect.width) * 100;
+    const y = ((touch.clientY - dropAreaRect.top) / dropAreaRect.height) * 100;
+
+    if (dragData.source === 'clothesList') {
+      const idx = dragData.idx;
+      if (idx !== undefined) {
+        const droppedItem = {
+          ...clothes[idx],
+          position: { x, y },
+        };
+
+        dropped.push(droppedItem);
+        playPlimSound();
+        renderClothesList();
+        renderDroppedClothes();
+        updateButtonVisibility();
+      }
+    } else if (dragData.source === 'dropArea') {
+      const droppedIndex = dragData.droppedIndex;
+      if (droppedIndex !== undefined) {
+        dropped[droppedIndex].position = { x, y };
+        renderDroppedClothes();
+      }
+    }
+  }
+
+  // Cleanup
+  if (draggedElement) {
+    draggedElement.remove();
+  }
+
+  // Restaurar elemento original
+  const originalElement = document.querySelector(
+    `[data-idx="${dragData.idx}"], [data-dropped-index="${dragData.droppedIndex}"]`,
+  );
+  if (originalElement) {
+    originalElement.style.opacity = '1';
+  }
+
+  // Restaurar drop area
+  dropArea.style.backgroundColor = 'transparent';
+  dropArea.style.transform = 'scale(1)';
+
+  // Reset variáveis
+  isDragging = false;
+  draggedElement = null;
+  originalParent = null;
+  dragData = {};
 }
 
 dropArea.addEventListener('dragover', e => {
@@ -192,6 +347,11 @@ function playPlimSound() {
   audio.play().catch(error => {
     console.log('Não foi possível reproduzir o som:', error);
   });
+
+  // Vibração para dispositivos móveis
+  if (isMobileDevice() && 'vibrate' in navigator) {
+    navigator.vibrate(100); // Vibrar por 100ms
+  }
 }
 
 function playFireworksSound() {
