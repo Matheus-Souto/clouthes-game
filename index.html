@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Let's Pack</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <main>
+            <div class="suitcase-area">
+                <div class="suitcase-bg">
+                    <!-- Imagem da mala aberta como fundo -->
+                    <img src="mala.png" alt="Mala aberta" class="suitcase-img">
+                    <div class="drop-area" id="dropArea">
+                        <!-- As roupas arrastadas aparecerão aqui -->
+                    </div>
+                </div>
+            </div>
+            <div class="clothes-list" id="clothesList">
+                <!-- Roupas disponíveis para arrastar -->
+            </div>
+        </main>
+        <footer>
+            <button id="restartBtn">Finalizar</button>
+        </footer>
+
+        <!-- Animação de fogos -->
+        <div id="fireworks" class="fireworks-container"></div>
+
+        <!-- Texto de parabéns -->
+        <div id="congratulations" class="congratulations-text">
+            Congratulations!
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
